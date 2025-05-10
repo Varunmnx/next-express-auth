@@ -1,3 +1,4 @@
+"use server"
 import { CookieKeys } from "@/lib/constants";
 import { cookies } from "next/headers";
 
