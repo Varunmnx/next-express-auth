@@ -7,7 +7,7 @@ const PORT = 1234
 const SECRET = 'mykey'
 const app = express()
 
-app.use(cors())
+app.use(cors({origin:"*"}))
 app.use(morgan('tiny'))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
@@ -16,6 +16,8 @@ app.use(express.urlencoded({ extended: true }))
 let users = [
     { id: 1, username: 'admin', password: 'password123' }
 ]
+
+let refreshTokens = []
 
 const extractBearerToken = headerValue => {
     if (typeof headerValue !== 'string') {
@@ -43,6 +45,56 @@ const checkTokenMiddleware = (req, res, next) => {
     next()
 }
 
+app.post("/refresh", (req, res) => {
+    try {
+        if(!req.body.refreshToken) {
+            return res.status(400).json({ message: 'need a refresh token' })
+        }
+        const token = req.headers.authorization && extractBearerToken(req.headers.authorization)
+        if (!token) {
+            return res.status(401).json({ message: 'need a access token' })
+        }
+        console.log(token)
+        jwt.verify(token, SECRET, (err, decodedToken) => {
+            if (err) {
+                return res.status(401).json({ message: 'bad token' })
+            }
+            // check if refresh token is valid
+            console.log(refreshTokens)
+            if(!refreshTokens.includes(req.body.refreshToken)) {
+                return res.status(401).json({ message: 'bad token' })
+            }
+            // generate new access token
+            const access_token = jwt.sign({
+                sub: decodedToken.sub,
+                username: decodedToken.username
+            }, SECRET, { expiresIn: '1 hour' })
+    
+            // generate new refresh token
+            const refresh_token = jwt.sign({
+                sub: decodedToken.sub,
+                username: decodedToken.username
+            }, SECRET, { expiresIn: '1 day' })
+    
+            // remove the old refresh token from the array
+            refreshTokens = refreshTokens.filter(t => t !== req.body.refreshToken)
+    
+            // add new refresh token to the array
+            refreshTokens.push(refresh_token)
+    
+            return res.status(200).json({
+                access_token,
+                refresh_token: refresh_token
+            })
+        })
+    
+        return res.status(200).json({ message: "refreshed" })
+    } catch (error) {
+        console.error(error)
+    } 
+
+})
+
 app.post('/login', (req, res) => {
     if (!req.body.username || !req.body.password) {
         return res.status(400).json({ message: 'enter the correct username and password' })
@@ -53,13 +105,21 @@ app.post('/login', (req, res) => {
     if (!user) {
         return res.status(400).json({ message: 'wrong login or password' })
     }
-
+    
+    // short lived access token 
     const token = jwt.sign({
         sub: user.id,
         username: user.username
     }, SECRET, { expiresIn: '3 hours' })
-
-    res.json({ access_token: token })
+    // long lived refresh token
+    const refreshToken = jwt.sign({
+        sub: user.id,
+        username: user.username
+    }, SECRET, { expiresIn: '1 day' })
+    // push the lts refresh token to the array
+    refreshTokens.push(refreshToken)
+    refreshTokens.push(token)
+    return res.json({ access_token: token, refresh_token: refreshToken })
 })
 
 app.post('/register', (req, res) => {
@@ -82,17 +142,17 @@ app.post('/register', (req, res) => {
 
     users.push(newUser)
 
-    res.status(201).json({ message: `user ${id} created`, content: newUser })
+    return res.status(201).json({ message: `user ${id} created`, content: newUser })
 })
 
 app.get('/me', checkTokenMiddleware, (req, res) => {
     const token = req.headers.authorization && extractBearerToken(req.headers.authorization)
     const decoded = jwt.decode(token, { complete: false })
-    res.json({ content: decoded })
+    return res.json({ content: decoded })
 })
 
 app.get('*', (req, res) => {
-    res.status(404).json({ message: 'page not found' })
+    return res.status(404).json({ message: 'page not found' })
 })
 
 app.listen(PORT, () => {

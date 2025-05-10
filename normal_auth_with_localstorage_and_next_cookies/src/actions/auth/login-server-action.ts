@@ -29,7 +29,7 @@ export async function login(username: string, password: string): Promise<LoginRe
     }
     console.log("====> Server Action ====>",data)
     // If login was successful, set the JWT token in an HTTP-only cookie
-    const { access_token } = data;
+    const { access_token, refresh_token } = data;
     const cookieStorage = await cookies();
     // Set the auth token cookie
     console.log("access token",access_token)
@@ -42,6 +42,17 @@ export async function login(username: string, password: string): Promise<LoginRe
       path: '/',
       maxAge: 60 * 60 * 24 * 7, // 1 week
     });
+    
+    // Set the refresh token cookie
+    cookieStorage.set({
+      name: CookieKeys.REFRESH_TOKEN,
+      value: refresh_token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // Use secure in production
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 1 week
+    })
 
     return { success: true };
   } catch (error) {

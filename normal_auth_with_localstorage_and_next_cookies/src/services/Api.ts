@@ -9,6 +9,9 @@ import { ApiConfig, DEFAULT_API_CONFIG } from "./Api-Config";
 import { Slug } from "./Api-Endpoints";
 import { StorageKeys, loadString } from "../utils/storage";
 import useAuthStore from "@/store/authStore";
+import { logoutServerAction } from "@/actions/auth/logout-server-action";
+import { refreshTokenGenerationAction } from "@/actions/auth/refresh-token-generation-action";
+import { validateJwtToken } from "@/lib/jwt-token";
 
 /**
  * Represents the response structure of an API request.
@@ -102,12 +105,11 @@ export class ApiService {
       },
     });
 
-    this.axios.interceptors.request.use((req: InternalAxiosRequestConfig) => {
+    this.axios.interceptors.request.use(async (req: InternalAxiosRequestConfig) => {
       const { url } = req;
       if (url !== Slug.LOGIN && url !== Slug.REGISTER) {
         const authState = useAuthStore.getState();
         const accessToken = authState.auth.token;
-
         if (accessToken) {
           req.headers.Authorization = `Bearer ${accessToken}`;
         }
@@ -119,11 +121,26 @@ export class ApiService {
       (response: AxiosResponse) => {
         return response;
       },
-      (error: AxiosError) => {
+      async (error: AxiosError) => {
         if (error.response && error.response.status === 401) {
-          // Handle unauthorized error, e.g., redirect to login page
+          // Handle unauthorized error, e.g., redirect to login page 
+          const response = await refreshTokenGenerationAction()
+          const { access_token, refresh_token } = response
+          if (!access_token || !refresh_token) {
+            logoutServerAction()
+            return Promise.reject(error);
+          }
+          if (!validateJwtToken(access_token)) {
+            logoutServerAction()
+            return Promise.reject(error);
+          }
+          useAuthStore.setState({
+            auth: {
+              token: access_token,
+              refreshToken: refresh_token
+            }
+          })
         }
-        return Promise.reject(error);
       },
     );
   }
