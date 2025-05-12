@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { cookies } from 'next/headers'
-import { CookieKeys } from './lib/constants'
+import { getTokensAction } from './actions/auth/get-tokens-action' 
 import { validateJwtToken } from './lib/jwt-token'
 import { refreshTokenGenerationAction } from './actions/auth/refresh-token-generation-action'
+import { logoutServerAction } from './actions/auth/logout-server-action'
 
 // Public routes that don't require authentication
 const publicRoutes = ['/home', '/login', '/signup']
@@ -20,9 +20,9 @@ export async function middleware(request: NextRequest) {
   console.log("<====> pathname <===>", pathname)
 
   // Check for token in cookies
-  const cookieStore =  await cookies()
-  let token = cookieStore.get(CookieKeys.AUTH_TOKEN)?.value
-  let refreshToken = cookieStore.get(CookieKeys.REFRESH_TOKEN)?.value
+  const tokens = await getTokensAction()
+  let token = tokens?.accessToken
+  const refreshToken = tokens?.refreshToken
   
   // Skip auth check for public routes
   if (isPublicRoute(pathname) && !isAuthRoute(pathname)) {
@@ -31,7 +31,12 @@ export async function middleware(request: NextRequest) {
 
   // Check if token is valid
   let isTokenValid = token ? await validateJwtToken(token) : false
-
+  console.log(
+    "<====> token <===>",
+    token,
+    "<====> isTokenValid <===>",
+    isTokenValid
+  )
   // If token is invalid but we have a refresh token, try to refresh
   if (!isTokenValid && refreshToken) {
     try {
@@ -49,18 +54,16 @@ export async function middleware(request: NextRequest) {
         return response
       } else {
         // Refresh failed, clear cookies
-        cookieStore.delete(CookieKeys.AUTH_TOKEN)
-        cookieStore.delete(CookieKeys.REFRESH_TOKEN)
+        logoutServerAction()
       }
     } catch (error) {
       console.error("Error refreshing token:", error)
       // Clear cookies on error
-      cookieStore.delete(CookieKeys.AUTH_TOKEN)
-      cookieStore.delete(CookieKeys.REFRESH_TOKEN)
+      logoutServerAction()
     }
   } else if (!isTokenValid) {
     // Token is invalid and we don't have a refresh token
-    cookieStore.delete(CookieKeys.AUTH_TOKEN)
+    logoutServerAction()
   }
 
   // Handle auth routes - redirect to dashboard if already authenticated

@@ -110,7 +110,7 @@ app.post('/login', (req, res) => {
     const token = jwt.sign({
         sub: user.id,
         username: user.username
-    }, SECRET, { expiresIn: '3 hours' })
+    }, SECRET, { expiresIn: '20s' })
     // long lived refresh token
     const refreshToken = jwt.sign({
         sub: user.id,
@@ -146,6 +146,11 @@ app.post('/register', (req, res) => {
 })
 
 app.get('/me', checkTokenMiddleware, (req, res) => {
+    const token = req.headers.authorization && extractBearerToken(req.headers.authorization)
+    const decoded = jwt.decode(token, { complete: false })
+    return res.json({ content: decoded })
+})
+app.get('/meTest', checkTokenMiddleware, (req, res) => {
     const token = req.headers.authorization && extractBearerToken(req.headers.authorization)
     const decoded = jwt.decode(token, { complete: false })
     return res.json({ content: decoded })

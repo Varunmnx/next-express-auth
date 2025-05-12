@@ -1,12 +1,8 @@
-"use client"
-import { getTokensAction } from '@/actions/auth/get-tokens-action'
-import { API } from '@/services'
-import useAuthStore from '@/store/authStore'
+"use client" 
+import { API } from '@/services' 
 import React, { useEffect } from 'react'
 
-const page = () => {
-const token = useAuthStore(state=>state.auth.token)
-const refreshToken = useAuthStore(state=>state.auth.refreshToken)
+const page = () => { 
 async function getUserDetails(){
   try {
     const res = await API.get({
@@ -20,12 +16,29 @@ async function getUserDetails(){
   }
  
 }
+async function getUserDetailsB(){
+  try {
+    const res = await API.get({
+        slug:"/meTest"
+     })
+    console.log(res)
+    return res
+  } catch (error) {
+    console.log(error)
+    console.log("======> line 13 from [about-me] <======")
+  }
+ 
+}
 
 useEffect(()=>{ 
-    getUserDetails()
-},[token,refreshToken])
+  (async()=>{
+    const res = await Promise.all([getUserDetails(),getUserDetailsB()])
+    console.log(res)  
+   })()
+},[ ])
+
   return (
-    <div>This is a authenticated route {token}</div>
+    <div>This is a authenticated route </div>
   )
 }
 

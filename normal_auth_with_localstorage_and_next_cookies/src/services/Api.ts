@@ -12,6 +12,7 @@ import useAuthStore from "@/store/authStore";
 import { logoutServerAction } from "@/actions/auth/logout-server-action";
 import { refreshTokenGenerationAction } from "@/actions/auth/refresh-token-generation-action";
 import { validateJwtToken } from "@/lib/jwt-token";
+import { getTokensAction } from "@/actions/auth/get-tokens-action";
 
 /**
  * Represents the response structure of an API request.
@@ -63,6 +64,11 @@ export class ApiService {
    */
   config: ApiConfig;
 
+  /***
+   * abort controller
+   */
+  abortController: AbortController
+
   /**
    * Private constructor to prevent instantiation from outside the class.
    * Use `ApiService.getInstance()` to get an instance of the class.
@@ -71,6 +77,7 @@ export class ApiService {
    */
   private constructor(config: ApiConfig = DEFAULT_API_CONFIG) {
     this.config = config;
+    this.abortController = new AbortController()
   }
 
   /**
@@ -108,10 +115,10 @@ export class ApiService {
     this.axios.interceptors.request.use(async (req: InternalAxiosRequestConfig) => {
       const { url } = req;
       if (url !== Slug.LOGIN && url !== Slug.REGISTER) {
-        const authState = useAuthStore.getState();
-        const accessToken = authState.auth.token;
-        if (accessToken) {
-          req.headers.Authorization = `Bearer ${accessToken}`;
+        const tokens= await getTokensAction()
+        console.log("tokensFromCookieStorage", tokens) 
+        if (tokens?.accessToken) {
+          req.headers.Authorization = `Bearer ${tokens?.accessToken}`;
         }
       }
       return req;
@@ -122,25 +129,66 @@ export class ApiService {
         return response;
       },
       async (error: AxiosError) => {
-        if (error.response && error.response.status === 401) {
-          // Handle unauthorized error, e.g., redirect to login page 
-          const response = await refreshTokenGenerationAction()
-          const { access_token, refresh_token } = response
-          if (!access_token || !refresh_token) {
-            logoutServerAction()
-            return Promise.reject(error);
-          }
-          if (!validateJwtToken(access_token)) {
-            logoutServerAction()
-            return Promise.reject(error);
-          }
-          useAuthStore.setState({
-            auth: {
-              token: access_token,
-              refreshToken: refresh_token
+        // Store the original request configuration
+        const originalRequest = error.config;
+
+        if (error.response && error.response.status === 401 && originalRequest) {
+          // Only try to refresh the token if we haven't tried already
+          if (!(originalRequest as any)._retry) {
+            // Abort all ongoing requests to prevent further API calls with invalid token
+            this.abortController.abort();
+
+            // Mark this request as retried to prevent infinite loops
+            (originalRequest as any)._retry = true;
+
+            try {
+              // Try to refresh the token
+              const response = await refreshTokenGenerationAction();
+              const { access_token, refresh_token } = response;
+
+              if (!access_token || !refresh_token) {
+                await logoutServerAction();
+                return Promise.reject(error);
+              }
+
+              const isUpdatedJwtTokenValid = await validateJwtToken(access_token);
+              if (!isUpdatedJwtTokenValid) {
+                await logoutServerAction();
+                return Promise.reject(error);
+              }
+
+              // Update the auth store with new tokens
+              useAuthStore.setState({
+                auth: {
+                  token: access_token,
+                  refreshToken: refresh_token
+                }
+              });
+
+              // Create a new abort controller for future requests
+              this.abortController = new AbortController();
+
+              // Update the authorization header with the new token
+              originalRequest.headers.Authorization = `Bearer ${access_token}`;
+
+              // Retry the original request with the new token
+              return this.axios!(originalRequest);
+            } catch (refreshError) {
+              // If token refresh fails, logout and reject
+              await logoutServerAction();
+              return Promise.reject(refreshError);
             }
-          })
+          }
         }
+
+        // Check if this request was aborted due to a 401 response
+        if (error.name === 'AbortError' || error.message === 'canceled') {
+          // This request was aborted during token refresh, let's just return a rejected promise
+          return Promise.reject(new Error('Request aborted during token refresh'));
+        }
+
+        // If not a 401 error or we've already tried retrying, continue with the rejection
+        return Promise.reject(error);
       },
     );
   }

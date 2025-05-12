@@ -24,7 +24,7 @@ const TokenHandlerWrapper = ({ token, children, refreshToken }: Props) => {
       logoutServerAction()
       router.refresh()
     }
-    const isTokenValid = validateJwtToken(res?.accessToken ?? "")
+    const isTokenValid = await validateJwtToken(res?.accessToken ?? "")
     console.log("isTokenValid", isTokenValid)
     if (!isTokenValid) {
       const res = await refreshTokenGenerationAction()
@@ -41,12 +41,8 @@ const TokenHandlerWrapper = ({ token, children, refreshToken }: Props) => {
 
   
   useEffect(() => {
-    const intervalId = setInterval(() => {
-      validateAndRefetchToken()
-    }, 5 * 1000)
-
-    return () => clearInterval(intervalId)
-  }, [])
+      setToken(token,refreshToken)
+  }, [token,refreshToken])
 
   return (
     <div>{children}</div>
