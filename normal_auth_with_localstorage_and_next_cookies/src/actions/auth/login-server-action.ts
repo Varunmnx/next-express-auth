@@ -1,60 +1,62 @@
-'use server';
-
+'use server'
 import { CookieKeys } from '@/lib/constants';
-import { cookies } from 'next/headers';
+import { cookies } from 'next/headers'; 
 
-type LoginResult = {
+
+interface LoginResult {
   success: boolean;
   error?: string;
-};
+  redirectUrl?: string;
+}
 
 export async function login(username: string, password: string): Promise<LoginResult> {
   try {
-    // Make API call to your authentication endpoint
-    const response = await fetch(process.env.NEXT_PUBLIC_API_URL + '/login', {
+    // Make a direct API call to your authentication endpoint
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/auth/callback/credentials`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({
+        email: username,
+        password: password,
+      }),
     });
-
-    const data = await response.json();
 
     if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
       return {
         success: false,
-        error: data.message || 'Authentication failed',
+        error: errorData.error || 'Authentication failed',
       };
     }
-    console.log("====> Server Action ====>",data)
-    // If login was successful, set the JWT token in an HTTP-only cookie
-    const { access_token, refresh_token } = data;
-    const cookieStorage = await cookies();
-    // Set the auth token cookie
-    console.log("access token",access_token)
-    cookieStorage.set({
-      name: CookieKeys.AUTH_TOKEN,
-      value: access_token,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // Use secure in production
-      sameSite: 'strict',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 1 week
-    });
-    
-    // Set the refresh token cookie
-    cookieStorage.set({
-      name: CookieKeys.REFRESH_TOKEN,
-      value: refresh_token,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // Use secure in production
-      sameSite: 'strict',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 1 week
-    })
 
-    return { success: true };
+    const data = await response.json();
+    
+    // Set cookies if needed
+    const cookieStore = await cookies();
+    if (data.token) {
+      cookieStore.set(CookieKeys.AUTH_TOKEN, data.token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 60 * 24 * 7, // 1 week
+        path: '/',
+      });
+    }
+    
+    if (data.refreshToken) {
+      cookieStore.set(CookieKeys.REFRESH_TOKEN, data.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+        path: '/',
+      });
+    }
+
+    return { 
+      success: true,
+      redirectUrl: '/home'
+    };
   } catch (error) {
     console.error('Login error:', error);
     return {
@@ -64,25 +66,36 @@ export async function login(username: string, password: string): Promise<LoginRe
   }
 }
 
-// For development/testing purposes only
+// For development/testing only
 export async function mockLogin(username: string, password: string): Promise<LoginResult> {
   // IMPORTANT: This is only for development/testing
   // In a real application, never hardcode credentials
   if (username === 'admin' && password === 'password123') {
-    // Mock JWT token (in a real app, this would come from your auth service)
-    const mockToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxMjM0NTYiLCJ1c2VybmFtZSI6ImFkbWluIiwiaWF0IjoxNjE2MTQ4MzY1LCJleHAiOjE2MTYyMzQ3NjV9.mocked-signature';
-    const cookieStorage = await cookies();
-    cookieStorage.set({
-      name: CookieKeys.AUTH_TOKEN,
-      value: mockToken,
+    // Set mock cookies
+    const cookieStore = await cookies();
+    
+    // Create a mock token
+    const mockToken = 'mock-jwt-token-for-testing-purposes-only';
+    const mockRefreshToken = 'mock-refresh-token-for-testing-purposes-only';
+    
+    cookieStore.set(CookieKeys.AUTH_TOKEN, mockToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: '/',
       maxAge: 60 * 60 * 24 * 7, // 1 week
+      path: '/',
     });
     
-    return { success: true };
+    cookieStore.set(CookieKeys.REFRESH_TOKEN, mockRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+      path: '/',
+    });
+    
+    return { 
+      success: true,
+      redirectUrl: '/home'
+    };
   }
   
   return {
