@@ -1,7 +1,7 @@
 // pages/api/auth/refresh.ts
 import { NextApiRequest, NextApiResponse } from "next";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "./[...nextauth]";
+import { getServerSession } from "next-auth/next"; 
+import { authOptions } from "@/auth";
 
 interface RefreshTokenResponse {
   accessToken: string;

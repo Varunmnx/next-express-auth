@@ -1,6 +1,6 @@
-"use client"
-import { login } from '@/actions/auth/login-server-action'
+"use client" 
 import { useRouter } from 'next/navigation'
+import { signIn } from "next-auth/react";
 import React, { useState } from 'react'
 
 const USERNAME = "admin"
@@ -14,23 +14,11 @@ const Page = () => {
     const formData = new FormData(e.currentTarget);
     const username = formData.get('username') as string;
     const password = formData.get('password') as string;
-    
-    try {
-      const response = await login(username, password);
-      
-      if (response?.success) {
-        if (response.redirectUrl) {
-          router.push(response.redirectUrl);
-        } else {
-          router.push('/home');
-        }
-      } else {
-        setError(response?.error || 'Login failed');
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      setError('An unexpected error occurred');
-    }
+    await signIn("credentials", {
+      username,
+      password,
+      callbackUrl: "/",
+    });
   }
   
   return (

@@ -1,13 +1,11 @@
 'use server'
-
-import { CookieKeys } from "@/lib/constants"
-import { cookies } from "next/headers"
+import { getServerSession } from "next-auth"
 
 export async function getTokensAction(){
-    const cookieStore = await cookies()
-    const accessToken = cookieStore.get(CookieKeys.AUTH_TOKEN)?.value
-    const refreshToken = cookieStore.get(CookieKeys.REFRESH_TOKEN)?.value
-
+    const session = await getServerSession() 
+    const accessToken = session?.accessToken
+    const refreshToken = session?.refreshToken
+    console.log('session', session) 
     return { accessToken, refreshToken }
 
 }

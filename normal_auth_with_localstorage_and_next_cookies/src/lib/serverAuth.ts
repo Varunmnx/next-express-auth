@@ -1,8 +1,8 @@
 // lib/serverAuth.ts
 import { GetServerSidePropsContext, GetServerSidePropsResult, NextApiRequest, NextApiResponse } from "next";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "../api/auth/[...nextauth]";
+import { getServerSession } from "next-auth/next"; 
 import { Session } from "next-auth";
+import { authOptions } from "@/auth";
 
 // Type for server-side authenticated context
 export interface AuthenticatedContext extends GetServerSidePropsContext {
@@ -51,7 +51,7 @@ export async function verifyServerSession(
     }
 
     // Check token expiration
-    if (session.accessTokenExpires && Date.now() > session.accessTokenExpires) {
+    if (session?.expiresAt && Date.now() > session.expiresAt) {
       return { authenticated: false, session: null, error: "Token expired" };
     }
 

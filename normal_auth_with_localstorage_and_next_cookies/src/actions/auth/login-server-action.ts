@@ -11,18 +11,19 @@ interface LoginResult {
 
 export async function login(username: string, password: string): Promise<LoginResult> {
   try {
+    console.log(process.env.NEXT_PUBLIC_API_URL)
     // Make a direct API call to your authentication endpoint
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/auth/callback/credentials`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        email: username,
-        password: password,
+        username,
+        password,
       }),
     });
-
+    console.log(response)
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       return {

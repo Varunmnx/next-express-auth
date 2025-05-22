@@ -7,8 +7,7 @@ import axios, {
 } from "axios";
 import { ApiConfig, DEFAULT_API_CONFIG } from "./Api-Config";
 import { Slug } from "./Api-Endpoints";
-import { StorageKeys, loadString } from "../utils/storage";
-import useAuthStore from "@/store/authStore";
+import { useSession } from 'next-auth/react'
 import { logoutServerAction } from "@/actions/auth/logout-server-action";
 import { refreshTokenGenerationAction } from "@/actions/auth/refresh-token-generation-action";
 import { validateJwtToken } from "@/lib/jwt-token";
@@ -115,8 +114,7 @@ export class ApiService {
     this.axios.interceptors.request.use(async (req: InternalAxiosRequestConfig) => {
       const { url } = req;
       if (url !== Slug.LOGIN && url !== Slug.REGISTER) {
-        const tokens= await getTokensAction()
-        console.log("tokensFromCookieStorage", tokens) 
+        const tokens= await getTokensAction() 
         if (tokens?.accessToken) {
           req.headers.Authorization = `Bearer ${tokens?.accessToken}`;
         }
@@ -156,13 +154,10 @@ export class ApiService {
                 await logoutServerAction();
                 return Promise.reject(error);
               }
-
-              // Update the auth store with new tokens
-              useAuthStore.setState({
-                auth: {
-                  token: access_token,
-                  refreshToken: refresh_token
-                }
+              const { update } = useSession()
+              await update({
+                newAccessToken: access_token,
+                newRefreshToken: refresh_token
               });
 
               // Create a new abort controller for future requests

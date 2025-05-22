@@ -96,6 +96,7 @@ app.post("/refresh", (req, res) => {
 })
 
 app.post('/login', (req, res) => {
+    console.log(req.body)
     if (!req.body.username || !req.body.password) {
         return res.status(400).json({ message: 'enter the correct username and password' })
     }
