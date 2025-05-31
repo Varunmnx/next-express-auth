@@ -1,11 +1,15 @@
-'use server'
-import { getServerSession } from "next-auth"
+// actions/auth/get-tokens-action.ts
+'use server';
 
-export async function getTokensAction(){
-    const session = await getServerSession() 
-    const accessToken = session?.accessToken
-    const refreshToken = session?.refreshToken
-    console.log('session', session) 
-    return { accessToken, refreshToken }
+import { authOptions } from "@/auth";
+import { getServerSession } from "next-auth"; 
 
+export async function getTokensAction() {
+  const session = await getServerSession(authOptions); // Pass authOptions here
+  console.log('Full session:', session); // Debug log
+  
+  return {
+    accessToken: session?.accessToken,
+    refreshToken: session?.refreshToken
+  };
 }

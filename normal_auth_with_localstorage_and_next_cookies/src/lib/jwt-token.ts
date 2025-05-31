@@ -2,12 +2,13 @@ import { jwtVerify } from "jose"
 
 export async function validateJwtToken(token: string) {
     try {
-        if (!token) return false
-
+        if (!token) return false 
         // Verify the JWT token
         // Use the same secret as NextAuth
         const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || "mykey")
         const res = await jwtVerify(token, secretKey)
+        console.log(">>>>> validateJwtToken: ", res)
+        if(res?.payload?.exp && res?.payload?.exp < Date.now() / 1000) return false
         return true
     } catch {
         return false

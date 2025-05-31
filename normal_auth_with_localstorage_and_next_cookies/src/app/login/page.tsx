@@ -14,12 +14,17 @@ const Page = () => {
     const formData = new FormData(e.currentTarget);
     const username = formData.get('username') as string;
     const password = formData.get('password') as string;
-    await signIn("credentials", {
+    const result = await signIn("credentials", {
+      redirect: false,
+      callbackUrl: "/aboutme",
       username,
-      password,
-      callbackUrl: "/",
+      password
     });
-  }
+
+    if (result?.url) {
+      router.push(result.url);
+    }
+  };
   
   return (
     <div className="login-container">

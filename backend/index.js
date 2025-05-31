@@ -12,6 +12,10 @@ app.use(morgan('tiny'))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
+
+const ACCESS_TOKEN_EXPIRE_TIME = 10000
+const REFRESH_TOKEN_EXPIRE_TIME = 1000 * 60 * 60 * 24
+
 // Fake users
 let users = [
     { id: 1, username: 'admin', password: 'password123' }
@@ -111,7 +115,7 @@ app.post('/login', (req, res) => {
     const token = jwt.sign({
         sub: user.id,
         username: user.username
-    }, SECRET, { expiresIn: '20s' })
+    }, SECRET, { expiresIn: "10 s" })
     // long lived refresh token
     const refreshToken = jwt.sign({
         sub: user.id,
@@ -120,7 +124,7 @@ app.post('/login', (req, res) => {
     // push the lts refresh token to the array
     refreshTokens.push(refreshToken)
     refreshTokens.push(token)
-    return res.json({ access_token: token, refresh_token: refreshToken })
+    return res.json({ access_token: token, refresh_token: refreshToken, username:user?.username })
 })
 
 app.post('/register', (req, res) => {

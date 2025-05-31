@@ -2,11 +2,16 @@
 import { CookieKeys } from '@/lib/constants';
 import { cookies } from 'next/headers'; 
 
-
+export interface LoginResponse {
+   access_token: string; 
+   refresh_token: string; 
+   username: string; 
+}
 interface LoginResult {
   success: boolean;
   error?: string;
   redirectUrl?: string;
+  data?: LoginResponse
 }
 
 export async function login(username: string, password: string): Promise<LoginResult> {
@@ -34,28 +39,9 @@ export async function login(username: string, password: string): Promise<LoginRe
 
     const data = await response.json();
     
-    // Set cookies if needed
-    const cookieStore = await cookies();
-    if (data.token) {
-      cookieStore.set(CookieKeys.AUTH_TOKEN, data.token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 60 * 60 * 24 * 7, // 1 week
-        path: '/',
-      });
-    }
-    
-    if (data.refreshToken) {
-      cookieStore.set(CookieKeys.REFRESH_TOKEN, data.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 60 * 60 * 24 * 30, // 30 days
-        path: '/',
-      });
-    }
-
     return { 
       success: true,
+      data,
       redirectUrl: '/home'
     };
   } catch (error) {

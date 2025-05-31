@@ -15,35 +15,46 @@ const isPublicRoute = (pathname: string) =>
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   
-  // Skip auth check for public routes
+  console.log('Middleware running for path:', pathname)
+  
+  // Skip auth check for public routes that are not auth routes
   if (isPublicRoute(pathname) && !isAuthRoute(pathname)) {
+    console.log('Public route, allowing access:', pathname)
     return NextResponse.next()
   }
-
+  
   // Get the token using NextAuth's getToken
   const token = await getToken({ 
     req: request, 
-    secret: process.env.JWT_SECRET,
-    secureCookie: process.env.NODE_ENV === 'production'
+    secret: process.env.NEXTAUTH_SECRET 
   })
-
+  console.log('Token: [middleware.ts]:31', token)
+  console.log('Token exists:', !!token)
+  console.log('Token error:', token?.error)
+  
   // Check if token exists and is valid
   const isAuthenticated = !!token && !token.error
   
-  // Handle auth routes - redirect to dashboard if already authenticated
+  console.log('User authenticated:', isAuthenticated)
+  
+  // Handle auth routes - redirect authenticated users away from login/signup
   if (isAuthenticated && isAuthRoute(pathname)) {
+    console.log('Authenticated user trying to access auth route, redirecting to /aboutme')
     const homeUrl = new URL('/aboutme', request.url)
     return NextResponse.redirect(homeUrl)
   }
-
-  // Handle protected routes - redirect to login if not authenticated
-  if (!isAuthenticated && !isAuthRoute(pathname)) {
+  
+  // Handle protected routes - redirect unauthenticated users to login
+  if (!isAuthenticated && !isAuthRoute(pathname) && !isPublicRoute(pathname)) {
+    console.log('Unauthenticated user trying to access protected route, redirecting to login')
     const loginUrl = new URL('/login', request.url)
     // Add the callback URL to redirect back after login
-    loginUrl.searchParams.set('callbackUrl', request.url)
+    console.log("cburl",encodeURI(request.url))
+    loginUrl.searchParams.set('callbackUrl', encodeURIComponent(request.url))
     return NextResponse.redirect(loginUrl)
   }
-
+  
+  console.log('Allowing access to:', pathname)
   // Pass to next middleware or page if everything is fine
   return NextResponse.next()
 }
@@ -57,7 +68,7 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder
-     * - api routes (if you don't want to protect them with this middleware)
+     * - api routes (optional - remove from exclusion if you want to protect API routes)
      */
     '/((?!_next/static|_next/image|favicon.ico|public|api).*)',
   ],

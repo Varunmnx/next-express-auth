@@ -7,13 +7,12 @@ declare module "next-auth" {
       username?: string;
       name?: string;
       email?: string;
+      image?: string;
     };
     accessToken?: string;
     refreshToken?: string;
     error?: string;
-    expiresAt?: number;
-    newAccessToken?: string;
-    newRefreshToken?: string;
+    expiresAt?: number; 
   }
 
   interface User {
