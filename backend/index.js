@@ -51,21 +51,24 @@ const checkTokenMiddleware = (req, res, next) => {
 
 app.post("/refresh", (req, res) => {
     try {
-        if(!req.body.refreshToken) {
+        const token = req?.body?.refreshToken
+        if(!token) {
             return res.status(400).json({ message: 'need a refresh token' })
         }
-        const token = req.headers.authorization && extractBearerToken(req.headers.authorization)
         if (!token) {
+            console.log("no access token found !!!!!")
             return res.status(401).json({ message: 'need a access token' })
         }
-        console.log(token)
-        jwt.verify(token, SECRET, (err, decodedToken) => {
+        // at this point access token should be expired 
+        return jwt.verify(token, SECRET, (err, decodedToken) => {
             if (err) {
+                console.log("bad token",err)
                 return res.status(401).json({ message: 'bad token' })
             }
             // check if refresh token is valid
             console.log(refreshTokens)
-            if(!refreshTokens.includes(req.body.refreshToken)) {
+            if(!refreshTokens.includes(token)) {
+                console.log("bad refresh token: line:73")
                 return res.status(401).json({ message: 'bad token' })
             }
             // generate new access token
@@ -92,7 +95,7 @@ app.post("/refresh", (req, res) => {
             })
         })
     
-        return res.status(200).json({ message: "refreshed" })
+        // return res.status(200).json({ message: "refreshed" })
     } catch (error) {
         console.error(error)
     } 
@@ -122,8 +125,8 @@ app.post('/login', (req, res) => {
         username: user.username
     }, SECRET, { expiresIn: '1 day' })
     // push the lts refresh token to the array
-    refreshTokens.push(refreshToken)
-    refreshTokens.push(token)
+    refreshTokens.push(refreshToken) 
+    console.log("pushing new refresh token",refreshToken)
     return res.json({ access_token: token, refresh_token: refreshToken, username:user?.username })
 })
 

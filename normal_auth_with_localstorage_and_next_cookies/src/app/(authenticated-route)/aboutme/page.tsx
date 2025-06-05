@@ -37,8 +37,8 @@ useEffect(()=>{
   (async()=>{
     // const res = await Promise.all([getUserDetails(),getUserDetailsB()])
     // console.log(res)  
-    const res = await getTokensAction()
-    console.log("be session",res)
+    // const res = await getTokensAction()
+    // console.log("be session",res)
   })()
   console.log("Session",session)
 },[ session])

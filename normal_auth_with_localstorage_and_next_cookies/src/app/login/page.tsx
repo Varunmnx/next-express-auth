@@ -8,9 +8,10 @@ const PASSWORD = "password123"
 const Page = () => {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-
+  const [isSubmitting,setIsSubmitting] = useState(false);
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    setIsSubmitting(true);
     const formData = new FormData(e.currentTarget);
     const username = formData.get('username') as string;
     const password = formData.get('password') as string;
@@ -51,7 +52,7 @@ const Page = () => {
             placeholder="Enter password" 
           />
         </div>
-        <button type="submit" className="submit-button">Login</button>
+        <button disabled={isSubmitting} type="submit" className="submit-button">Login</button>
       </form>
     </div>
   )
